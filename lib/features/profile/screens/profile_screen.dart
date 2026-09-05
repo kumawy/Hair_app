@@ -1,18 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class ProfileScreen extends StatefulWidget {
+import '../../auth/auth_repository.dart';
+import '../../auth/providers/user_profile_provider.dart';
+
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
+  Future<void> _logOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
 
-class _ProfileScreenState extends State<ProfileScreen> {
+    if (confirmed != true) return;
+
+    await ref.read(authRepositoryProvider).signOut();
+
+    if (context.mounted) context.go('/');
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
+    final profileAsync = ref.watch(userProfileProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -28,29 +54,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Аватар + имя + почта
+            // Аватар + имя + почта — реактивно обновляется при логине/логауте
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Icon(Icons.account_circle, color: theme.colorScheme.onSurface, size: 80),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "Aslan Muratov",
-                        style: textTheme.titleLarge,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "aslanmuratov09@gmail.com",
-                        style: textTheme.bodyMedium,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  child: profileAsync.when(
+                    loading: () => Text('Loading...', style: textTheme.titleLarge),
+                    error: (error, stackTrace) => Text(
+                      'Failed to load profile',
+                      style: textTheme.titleLarge,
+                    ),
+                    data: (profile) {
+                      if (profile == null) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Not signed in', style: textTheme.titleLarge),
+                            const SizedBox(height: 4),
+                            TextButton(
+                              onPressed: () => context.push('/loginscreen'),
+                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                              child: const Text('Sign in'),
+                            ),
+                          ],
+                        );
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            profile.fullName.isNotEmpty ? profile.fullName : 'No name',
+                            style: textTheme.titleLarge,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            profile.email,
+                            style: textTheme.bodyMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],
@@ -101,10 +151,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             GlassListTile(
               icon: Icons.logout,
               title: "Log Out",
-              onTap: () {},
+              onTap: () => _logOut(context, ref),
               trailing: const SizedBox.shrink(),
               color: Colors.redAccent,
-
             ),
             const SizedBox(height: 90),
           ],
@@ -143,7 +192,6 @@ class GlassListTile extends StatelessWidget {
         border: Border.all(
           color: color ?? theme.dividerColor.withValues(alpha: 0.1),
           width: 1,
-
         ),
       ),
       child: Material(
@@ -154,10 +202,10 @@ class GlassListTile extends StatelessWidget {
           borderRadius: radius,
           onTap: onTap,
           child: ListTile(
-            leading: Icon(icon, color: color??theme.colorScheme.onSurface, size: 28),
+            leading: Icon(icon, color: color ?? theme.colorScheme.onSurface, size: 28),
             title: Text(
               title,
-              style: theme.textTheme.titleMedium?.copyWith(color: color??theme.colorScheme.onSurface),
+              style: theme.textTheme.titleMedium?.copyWith(color: color ?? theme.colorScheme.onSurface),
             ),
             trailing: trailing ??
                 Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),

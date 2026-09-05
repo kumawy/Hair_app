@@ -1,10 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../hairstyles/providers/provider_hairstyle.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../auth/providers/user_profile_provider.dart';
+import '../../hairstyles/providers/provider_hairstyle.dart';
+import '../../../shared/widgets/hairstyle_card.dart';
 
 class Home extends ConsumerWidget {
   const Home({super.key});
+
+  Widget _buildHairstyleRow(WidgetRef ref, Size size) {
+    final hairstylesAsync = ref.watch(hairstylesProvider);
+
+    return SizedBox(
+      height: size.height / 4,
+      child: hairstylesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => const Center(
+          child: Text('Failed to load hairstyles'),
+        ),
+        data: (data) {
+          return ListView.builder(
+            padding: const EdgeInsets.only(left: 20),
+            scrollDirection: Axis.horizontal,
+            itemCount: data.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: SizedBox(
+                  width: size.width / 2.5,
+                  child: HairstyleCard(hairstyle: data[index]),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -12,7 +45,14 @@ class Home extends ConsumerWidget {
     final textTheme = theme.textTheme;
     final colorScheme = theme.colorScheme;
     final size = MediaQuery.sizeOf(context);
-    final hairstylesAsync = ref.watch(hairstylesProvider);
+    final userProfileAsync = ref.watch(userProfileProvider);
+
+    final greeting = userProfileAsync.maybeWhen(
+      data: (profile) => profile != null && profile.name.isNotEmpty
+          ? 'Hello, ${profile.name}'
+          : 'Hello!',
+      orElse: () => 'Hello!',
+    );
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -54,7 +94,7 @@ class Home extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Hello, Aslan",
+                    greeting,
                     style: textTheme.headlineLarge,
                   ),
                   Text(
@@ -152,74 +192,7 @@ class Home extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            SizedBox(
-              height: size.height / 4,
-              child: hairstylesAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (error, stackTrace) => const Center(
-                    child: Text('Failed to load hairstyles'),
-                  ),
-                  data: (data) {
-                    return ListView.builder(
-                      padding: const EdgeInsets.only(left: 20),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: data.length,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          width: size.width / 2.5,
-                          margin: const EdgeInsets.only(right: 12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surface,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: colorScheme.onSurface.withValues(alpha: 0.08)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: const BorderRadius.only(
-                                    bottomLeft: Radius.circular(20),
-                                    bottomRight: Radius.circular(20),
-                                  ),
-                                  child: Image.asset(
-                                    data[index].imageAsset,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Center(
-                                        child: Icon(
-                                          Icons.image_not_supported_outlined,
-                                          color: colorScheme.onSurface.withValues(alpha: 0.38),
-                                          size: 40,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Text(
-                                  data[index].name,
-                                  style: textTheme.titleMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  }
-              ),
-            ),
+            _buildHairstyleRow(ref, size),
 
             const SizedBox(height: 20),
 
@@ -242,74 +215,7 @@ class Home extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            SizedBox(
-              height: size.height / 4,
-              child: hairstylesAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (error, stackTrace) => const Center(
-                    child: Text('Failed to load hairstyles'),
-                  ),
-                  data: (data) {
-                    return ListView.builder(
-                      padding: const EdgeInsets.only(left: 20),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: data.length,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          width: size.width / 2.5,
-                          margin: const EdgeInsets.only(right: 12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surface,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: colorScheme.onSurface.withValues(alpha: 0.08)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: const BorderRadius.only(
-                                    bottomLeft: Radius.circular(20),
-                                    bottomRight: Radius.circular(20),
-                                  ),
-                                  child: Image.asset(
-                                    data[index].imageAsset,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Center(
-                                        child: Icon(
-                                          Icons.image_not_supported_outlined,
-                                          color: colorScheme.onSurface.withValues(alpha: 0.38),
-                                          size: 40,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Text(
-                                  data[index].name,
-                                  style: textTheme.titleMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  }
-              ),
-            ),
+            _buildHairstyleRow(ref, size),
           ],
         ),
 

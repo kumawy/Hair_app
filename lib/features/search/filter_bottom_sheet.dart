@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../../shared/models/hair_attributes.dart';
+import '../../shared/models/hair_attributes.dart';
 
 class FilterBottomSheet extends StatefulWidget {
   final FaceShape? initialFaceShape;

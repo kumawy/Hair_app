@@ -10,7 +10,8 @@ import '../features/favorites/screens/favorites_screen.dart';
 import '../features/profile/screens/settings_screen.dart';
 import '../features/hairstyles/screens/haircut_detail_screen.dart';
 import '../shared/models/hairstyle.dart';
-import '../features/login_screen.dart';
+import '../features/auth/login_screen.dart';
+import '../features/auth/register_screen.dart';
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
   routes: [
@@ -25,8 +26,15 @@ final hairstyle = state.extra as Hairstyle;
 return HaircutDetailsScreen(hairstyle: hairstyle);
 },
 ),
-    GoRoute(path: '/loginscreen',
-    builder: (context, state) => const HairAvatar()),
+    GoRoute(
+      path: '/loginscreen',
+      builder: (context, state) => const LoginScreen(),
+    ),
+
+    GoRoute(
+      path: '/register',
+      builder: (context, state) => const RegisterScreen(),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         final theme = Theme.of(context);

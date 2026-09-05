@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../hairstyles/providers/provider_hairstyle.dart';
-import '../../../shared/models/hairstyle.dart';
-import '../../../shared/models/hair_attributes.dart';
-import 'package:go_router/go_router.dart';
+import '../../shared/models/hairstyle.dart';
+import '../../shared/models/hair_attributes.dart';
+import '../../shared/widgets/hairstyle_card.dart';
 import 'filter_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -328,54 +328,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         delegate: SliverChildBuilderDelegate(
           (context, index) {
             final hairstyle = hairstyles[index];
-            return InkWell(
-              onTap: (){
-                context.push('/hairstyle/${hairstyle.id}', extra: hairstyle);
-              },
-              child:
-                Container(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: theme.colorScheme.onSurface.withValues(alpha: 0.08)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: Image.asset(
-                          hairstyle.imageAsset,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Center(
-                            child: Icon(
-                              Icons.image_not_supported_outlined,
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
-                              size: 40,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Text(
-                          hairstyle.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            );
+            return HairstyleCard(hairstyle: hairstyle);
           },
           childCount: hairstyles.length,
         ),

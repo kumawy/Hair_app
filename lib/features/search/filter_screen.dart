@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../shared/models/hair_attributes.dart';
+import '../../shared/models/hair_attributes.dart';
 import 'filter_bottom_sheet.dart';
 
 Future<Map<String, dynamic>?> filterScreen(
