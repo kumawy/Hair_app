@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../shared/models/hair_attributes.dart';
 
 class FilterBottomSheet extends StatefulWidget {
-  final FaceShape? initialFaceShape;
+  final Shape? initialFaceShape;
   final HairTexture? initialTexture;
   final HairLength? initialLength;
 
@@ -18,7 +18,7 @@ class FilterBottomSheet extends StatefulWidget {
 }
 
 class _FilterBottomSheetState extends State<FilterBottomSheet> {
-  FaceShape? _faceShape;
+  Shape? _faceShape;
   HairTexture? _texture;
   HairLength? _length;
 
@@ -39,51 +39,58 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 
   void _apply() {
-    Navigator.pop(
-      context,
-      {
-        'faceShape': _faceShape,
-        'texture': _texture,
-        'length': _length,
-      },
-    );
+    Navigator.pop(context, {
+      'faceShape': _faceShape,
+      'texture': _texture,
+      'length': _length,
+    });
   }
 
-  String _faceShapeName(FaceShape value) {
+  String _faceShapeName(Shape value) {
     switch (value) {
-      case FaceShape.oval: return 'Oval';
-      case FaceShape.round: return 'Round';
-      case FaceShape.square: return 'Square';
-      case FaceShape.heart: return 'Heart';
-      case FaceShape.diamond: return 'Diamond';
-      case FaceShape.long: return 'Long';
+      case Shape.oval:
+        return 'Oval';
+      case Shape.round:
+        return 'Round';
+      case Shape.square:
+        return 'Square';
+      case Shape.heart:
+        return 'Heart';
+      case Shape.diamond:
+        return 'Diamond';
+      case Shape.long:
+        return 'Long';
     }
   }
 
   String _textureName(HairTexture value) {
     switch (value) {
-      case HairTexture.straight: return 'Straight';
-      case HairTexture.wavy: return 'Wavy';
-      case HairTexture.curly: return 'Curly';
-      case HairTexture.coily: return 'Coily';
+      case HairTexture.straight:
+        return 'Straight';
+      case HairTexture.wavy:
+        return 'Wavy';
+      case HairTexture.curly:
+        return 'Curly';
+      case HairTexture.coily:
+        return 'Coily';
     }
   }
 
   String _lengthName(HairLength value) {
     switch (value) {
-      case HairLength.short: return 'Short';
-      case HairLength.medium: return 'Medium';
-      case HairLength.long: return 'Long';
+      case HairLength.short:
+        return 'Short';
+      case HairLength.medium:
+        return 'Medium';
+      case HairLength.long:
+        return 'Long';
     }
   }
 
   Widget _sectionTitle(String title, TextTheme textTheme) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, top: 18),
-      child: Text(
-        title,
-        style: textTheme.titleMedium?.copyWith(fontSize: 17),
-      ),
+      child: Text(title, style: textTheme.titleMedium?.copyWith(fontSize: 17)),
     );
   }
 
@@ -100,11 +107,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 
   Widget _wrap(List<Widget> children) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: children,
-    );
+    return Wrap(spacing: 8, runSpacing: 8, children: children);
   }
 
   int get _activeFilters {
@@ -128,12 +131,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           children: [
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    'Filters',
-                    style: textTheme.titleLarge,
-                  ),
-                ),
+                Expanded(child: Text('Filters', style: textTheme.titleLarge)),
                 if (_activeFilters > 0)
                   TextButton(
                     onPressed: _reset,
@@ -151,7 +149,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   children: [
                     _sectionTitle('Face shape', textTheme),
                     _wrap(
-                      FaceShape.values.map((value) {
+                      Shape.values.map((value) {
                         return _choiceChip(
                           title: _faceShapeName(value),
                           selected: _faceShape == value,

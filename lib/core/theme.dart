@@ -1,8 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'local_store.dart';
 
 // Провайдер для управления состоянием темы
-final themeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
+final themeProvider = StateNotifierProvider<ThemeController, ThemeMode>(
+  (ref) => ThemeController(ref.watch(localStoreProvider)),
+);
+
+class ThemeController extends StateNotifier<ThemeMode> {
+  ThemeController(this.store) : super(ThemeMode.dark) {
+    _load();
+  }
+  final LocalStore store;
+  int _version = 0;
+  Future<void> _load() async {
+    try {
+      final saved = await store.read('theme');
+      if (mounted && _version == 0) {
+        state = saved == 'light' ? ThemeMode.light : ThemeMode.dark;
+      }
+    } catch (_) {
+      /* Keep the usable default when local storage is unavailable. */
+    }
+  }
+
+  Future<void> setMode(ThemeMode value) async {
+    final version = ++_version;
+    await store.write('theme', value.name);
+    if (mounted && version == _version) state = value;
+  }
+}
 
 class AppColors {
   // Общие бренд-цвета
@@ -37,32 +64,32 @@ class AppColors {
 
 class AppTheme {
   static ThemeData get darkTheme => _buildTheme(
-        brightness: Brightness.dark,
-        background: AppColors.darkBackground,
-        surface: AppColors.darkSurface,
-        textPrimary: AppColors.darkTextPrimary,
-        textSecondary: AppColors.darkTextSecondary,
-        textHint: AppColors.darkTextHint,
-        textMuted: AppColors.darkTextMuted,
-        overlay: AppColors.darkOverlay,
-        border: AppColors.darkBorder,
-        chipUnselected: AppColors.darkChipUnselected,
-        chipBorder: AppColors.darkChipBorder,
-      );
+    brightness: Brightness.dark,
+    background: AppColors.darkBackground,
+    surface: AppColors.darkSurface,
+    textPrimary: AppColors.darkTextPrimary,
+    textSecondary: AppColors.darkTextSecondary,
+    textHint: AppColors.darkTextHint,
+    textMuted: AppColors.darkTextMuted,
+    overlay: AppColors.darkOverlay,
+    border: AppColors.darkBorder,
+    chipUnselected: AppColors.darkChipUnselected,
+    chipBorder: AppColors.darkChipBorder,
+  );
 
   static ThemeData get lightTheme => _buildTheme(
-        brightness: Brightness.light,
-        background: AppColors.lightBackground,
-        surface: AppColors.lightSurface,
-        textPrimary: AppColors.lightTextPrimary,
-        textSecondary: AppColors.lightTextSecondary,
-        textHint: AppColors.lightTextHint,
-        textMuted: AppColors.lightTextMuted,
-        overlay: AppColors.lightOverlay,
-        border: AppColors.lightBorder,
-        chipUnselected: AppColors.lightChipUnselected,
-        chipBorder: AppColors.lightChipBorder,
-      );
+    brightness: Brightness.light,
+    background: AppColors.lightBackground,
+    surface: AppColors.lightSurface,
+    textPrimary: AppColors.lightTextPrimary,
+    textSecondary: AppColors.lightTextSecondary,
+    textHint: AppColors.lightTextHint,
+    textMuted: AppColors.lightTextMuted,
+    overlay: AppColors.lightOverlay,
+    border: AppColors.lightBorder,
+    chipUnselected: AppColors.lightChipUnselected,
+    chipBorder: AppColors.lightChipBorder,
+  );
 
   static ThemeData _buildTheme({
     required Brightness brightness,
@@ -127,18 +154,9 @@ class AppTheme {
           fontSize: 16,
           fontWeight: FontWeight.bold,
         ),
-        bodyLarge: TextStyle(
-          color: textPrimary,
-          fontSize: 16,
-        ),
-        bodyMedium: TextStyle(
-          color: textSecondary,
-          fontSize: 15,
-        ),
-        bodySmall: TextStyle(
-          color: textHint,
-          fontSize: 13,
-        ),
+        bodyLarge: TextStyle(color: textPrimary, fontSize: 16),
+        bodyMedium: TextStyle(color: textSecondary, fontSize: 15),
+        bodySmall: TextStyle(color: textHint, fontSize: 13),
         labelLarge: TextStyle(
           color: textPrimary,
           fontSize: 14,
@@ -151,7 +169,10 @@ class AppTheme {
         hintStyle: TextStyle(color: textHint),
         prefixIconColor: textMuted,
         suffixIconColor: textMuted,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 15,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
           borderSide: BorderSide(color: border),
@@ -174,10 +195,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
 
@@ -187,14 +205,10 @@ class AppTheme {
         secondarySelectedColor: AppColors.primary,
         labelStyle: TextStyle(color: textPrimary),
         secondaryLabelStyle: const TextStyle(color: Colors.white),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         side: BorderSide(color: chipBorder),
       ),
-      iconTheme: IconThemeData(
-        color: textPrimary,
-      ),
+      iconTheme: IconThemeData(color: textPrimary),
       listTileTheme: ListTileThemeData(
         iconColor: textPrimary,
         textColor: textPrimary,
@@ -202,8 +216,12 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) => Colors.white),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.primaryLight;
-          return brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[300];
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primaryLight;
+          }
+          return brightness == Brightness.dark
+              ? Colors.grey[800]
+              : Colors.grey[300];
         }),
       ),
     );

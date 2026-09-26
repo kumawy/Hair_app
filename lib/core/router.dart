@@ -1,31 +1,43 @@
+import '../features/profile/screens/help_screen.dart';
+import '../features/profile/screens/analysis_history_screen.dart';
+import '../features/hairstyles/screens/recommendations_screen.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/home/screens/home_screen.dart';
+import '../features/face_scanner/screens/face_scanner_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/favorites/screens/favorites_screen.dart';
 import '../features/profile/screens/settings_screen.dart';
 import '../features/hairstyles/screens/haircut_detail_screen.dart';
-import '../shared/models/hairstyle.dart';
+
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
+import '../features/profile/screens/edit_profile_screen.dart';
+
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
   routes: [
+    GoRoute(path: '/FaceScanner', builder: (_, _) => const FaceScannerScreen()),
+    GoRoute(path: '/help', builder: (_, _) => const HelpScreen()),
+    GoRoute(path: '/history', builder: (_, _) => const AnalysisHistoryScreen()),
+    GoRoute(
+      path: '/recommendations',
+      builder: (_, _) => const RecommendationsScreen(),
+    ),
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
     ),
     GoRoute(
-path: '/hairstyle/:id',
-builder: (context, state) {
-final hairstyle = state.extra as Hairstyle;
-return HaircutDetailsScreen(hairstyle: hairstyle);
-},
-),
+      path: '/hairstyle/:id',
+      builder: (context, state) {
+        return HairstyleDetailsRoute(id: state.pathParameters['id']!);
+      },
+    ),
     GoRoute(
       path: '/loginscreen',
       builder: (context, state) => const LoginScreen(),
@@ -35,6 +47,10 @@ return HaircutDetailsScreen(hairstyle: hairstyle);
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
     ),
+    GoRoute(
+      path: '/editprofile',
+      builder: (context, state) => const EditProfileScreen(),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         final theme = Theme.of(context);
@@ -42,37 +58,61 @@ return HaircutDetailsScreen(hairstyle: hairstyle);
           value: SystemUiOverlayStyle(
             systemNavigationBarColor: theme.scaffoldBackgroundColor,
             systemNavigationBarIconBrightness:
-                theme.brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+                theme.brightness == Brightness.dark
+                ? Brightness.light
+                : Brightness.dark,
             statusBarColor: Colors.transparent,
-            statusBarIconBrightness:
-                theme.brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+            statusBarIconBrightness: theme.brightness == Brightness.dark
+                ? Brightness.light
+                : Brightness.dark,
           ),
           child: Scaffold(
             extendBody: true,
             body: navigationShell,
             bottomNavigationBar: _FloatingNavBar(
-              currentIndex: navigationShell.currentIndex,
-              onTap: (index) => navigationShell.goBranch(index),
+              currentIndex: navigationShell.currentIndex >= 2
+                  ? navigationShell.currentIndex + 1
+                  : navigationShell.currentIndex,
+              onTap: (index) {
+                if (index == 2) {
+                  context.push('/FaceScanner');
+                } else {
+                  navigationShell.goBranch(index > 2 ? index - 1 : index);
+                }
+              },
             ),
           ),
         );
       },
       branches: [
         StatefulShellBranch(
-          routes: [GoRoute(path: '/', builder: (context, state) => const Home())],
+          routes: [
+            GoRoute(path: '/', builder: (context, state) => const Home()),
+          ],
         ),
         StatefulShellBranch(
-          routes: [GoRoute(path: '/search', builder: (context, state) => const SearchScreen())],
+          routes: [
+            GoRoute(
+              path: '/search',
+              builder: (context, state) => const SearchScreen(),
+            ),
+          ],
         ),
         StatefulShellBranch(
-          routes: [GoRoute(path: '/FaceScanner', builder: (context, state) => const Scaffold(
-          ))],
+          routes: [
+            GoRoute(
+              path: '/favorites',
+              builder: (context, state) => const FavoritesScreen(),
+            ),
+          ],
         ),
         StatefulShellBranch(
-          routes: [GoRoute(path: '/favorites', builder: (context, state) => const FavoritesScreen())],
-        ),
-        StatefulShellBranch(
-          routes: [GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen())],
+          routes: [
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => const ProfileScreen(),
+            ),
+          ],
         ),
       ],
     ),
@@ -120,7 +160,10 @@ class _FloatingNavBarState extends State<_FloatingNavBar> {
   void _updateDrag(Offset localPosition, double barWidth, double deltaX) {
     final itemWidth = barWidth / _icons.length;
 
-    final index = (localPosition.dx / itemWidth).floor().clamp(0, _icons.length - 1);
+    final index = (localPosition.dx / itemWidth).floor().clamp(
+      0,
+      _icons.length - 1,
+    );
     _hoverIndex.value = index;
 
     final minX = itemWidth / 2;
@@ -129,7 +172,8 @@ class _FloatingNavBarState extends State<_FloatingNavBar> {
     _dragX.value = localPosition.dx.clamp(minX, maxX);
 
     final rawStretch = (deltaX.abs() * 1.5).clamp(0.0, 15.0);
-    _dragStretch.value = _dragStretch.value + (rawStretch - _dragStretch.value) * 0.4;
+    _dragStretch.value =
+        _dragStretch.value + (rawStretch - _dragStretch.value) * 0.4;
   }
 
   @override
@@ -161,7 +205,8 @@ class _FloatingNavBarState extends State<_FloatingNavBar> {
             builder: (context, constraints) {
               final barWidth = constraints.maxWidth;
               final itemWidth = barWidth / _icons.length;
-              final settledTargetX = itemWidth * widget.currentIndex + (itemWidth / 2);
+              final settledTargetX =
+                  itemWidth * widget.currentIndex + (itemWidth / 2);
 
               return GestureDetector(
                 onHorizontalDragStart: (details) {
@@ -175,7 +220,8 @@ class _FloatingNavBarState extends State<_FloatingNavBar> {
                   _updateDrag(details.localPosition, barWidth, delta);
                 },
                 onHorizontalDragEnd: (details) {
-                  if (_hoverIndex.value != null && _hoverIndex.value != widget.currentIndex) {
+                  if (_hoverIndex.value != null &&
+                      _hoverIndex.value != widget.currentIndex) {
                     widget.onTap(_hoverIndex.value!);
                   }
                   _isDragging.value = false;
@@ -196,19 +242,25 @@ class _FloatingNavBarState extends State<_FloatingNavBar> {
                         return ValueListenableBuilder<double>(
                           valueListenable: _dragStretch,
                           builder: (context, dragStretch, _) {
-                            final activeTargetX = isDragging ? dragX : settledTargetX;
+                            final activeTargetX = isDragging
+                                ? dragX
+                                : settledTargetX;
 
                             return TweenAnimationBuilder<double>(
                               tween: Tween<double>(end: activeTargetX),
-                              duration: isDragging ? Duration.zero : const Duration(milliseconds: 600),
-                              curve: isDragging ? Curves.linear : Curves.easeOutBack,
+                              duration: isDragging
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 600),
+                              curve: isDragging
+                                  ? Curves.linear
+                                  : Curves.easeOutBack,
                               builder: (context, currentX, child) {
-
                                 double stretch;
                                 if (isDragging) {
                                   stretch = dragStretch;
                                 } else {
-                                  final distance = (activeTargetX - currentX).abs();
+                                  final distance = (activeTargetX - currentX)
+                                      .abs();
                                   stretch = (distance * 0.4).clamp(0.0, 25.0);
                                 }
 
@@ -217,17 +269,21 @@ class _FloatingNavBarState extends State<_FloatingNavBar> {
                                   children: [
                                     // ФОНОВАЯ КАПЛЯ
                                     Positioned(
-                                      left: currentX - _circleSize/1.4,
+                                      left: currentX - _circleSize / 1.4,
                                       top: 10,
                                       child: Container(
                                         width: _circleSize + stretch + 20,
                                         height: _circleSize - 10,
                                         decoration: BoxDecoration(
                                           color: accent,
-                                          borderRadius: BorderRadius.circular(_circleSize / 2),
+                                          borderRadius: BorderRadius.circular(
+                                            _circleSize / 2,
+                                          ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: accent.withValues(alpha: 0.5),
+                                              color: accent.withValues(
+                                                alpha: 0.5,
+                                              ),
                                               blurRadius: 16,
                                               spreadRadius: 1,
                                             ),
@@ -237,14 +293,25 @@ class _FloatingNavBarState extends State<_FloatingNavBar> {
                                     ),
 
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                      children: List.generate(_icons.length, (index) {
-                                        final iconCenterX = itemWidth * index + (itemWidth / 2);
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: List.generate(_icons.length, (
+                                        index,
+                                      ) {
+                                        final iconCenterX =
+                                            itemWidth * index + (itemWidth / 2);
 
-                                        final distanceToIcon = (iconCenterX - currentX).abs();
-                                        final focus = (1.0 - (distanceToIcon / itemWidth)).clamp(0.0, 1.0);
+                                        final distanceToIcon =
+                                            (iconCenterX - currentX).abs();
+                                        final focus =
+                                            (1.0 - (distanceToIcon / itemWidth))
+                                                .clamp(0.0, 1.0);
 
-                                        final color = Color.lerp(inactiveColor, activeColor, focus)!;
+                                        final color = Color.lerp(
+                                          inactiveColor,
+                                          activeColor,
+                                          focus,
+                                        )!;
 
                                         final scale = 1.0 + (0.15 * focus);
 
@@ -265,7 +332,11 @@ class _FloatingNavBarState extends State<_FloatingNavBar> {
                                                 offset: Offset(0, translateY),
                                                 child: Transform.scale(
                                                   scale: scale,
-                                                  child: Icon(_icons[index], color: color, size: 24),
+                                                  child: Icon(
+                                                    _icons[index],
+                                                    color: color,
+                                                    size: 24,
+                                                  ),
                                                 ),
                                               ),
                                             ),

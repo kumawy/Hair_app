@@ -6,7 +6,7 @@ class Hairstyle {
   final String description;
   final String imageAsset;
 
-  final List<FaceShape> suitableFaceShapes;
+  final List<Shape> suitableFaceShapes;
   final List<HairTexture> suitableTextures;
   final List<HairLength> suitableLengths;
 
@@ -38,8 +38,8 @@ class Hairstyle {
       suitableFaceShapes:
       (json['suitableFaceShapes'] as List<dynamic>)
           .map(
-            (shape) => FaceShape.values.byName(
-          shape as String,
+            (s) => Shape.values.byName(
+          s as String,
         ),
       )
           .toList(),

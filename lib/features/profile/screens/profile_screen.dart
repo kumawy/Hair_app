@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hair_app/shared/widgets/fading_app_bar.dart';
 
 import '../../auth/auth_repository.dart';
 import '../../auth/providers/user_profile_provider.dart';
+import '../../../shared/models/hair_attributes.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -29,7 +31,18 @@ class ProfileScreen extends ConsumerWidget {
 
     if (confirmed != true) return;
 
-    await ref.read(authRepositoryProvider).signOut();
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not sign out. Please try again.'),
+          ),
+        );
+      }
+      return;
+    }
 
     if (context.mounted) context.go('/');
   }
@@ -41,28 +54,29 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(userProfileProvider);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: const FadingAppBar(title: Text('Profile'), centerTitle: true),
       body: SafeArea(
+        top: false,
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: FadingAppBar.contentPadding(
+            context,
+            const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          ),
           children: [
-            const SizedBox(height: 10),
-            Center(
-              child: Text(
-                "Profile",
-                style: textTheme.headlineLarge,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Аватар + имя + почта — реактивно обновляется при логине/логауте
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(Icons.account_circle, color: theme.colorScheme.onSurface, size: 80),
+                Icon(
+                  Icons.account_circle,
+                  color: theme.colorScheme.onSurface,
+                  size: 80,
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: profileAsync.when(
-                    loading: () => Text('Loading...', style: textTheme.titleLarge),
+                    loading: () =>
+                        Text('Loading...', style: textTheme.titleLarge),
                     error: (error, stackTrace) => Text(
                       'Failed to load profile',
                       style: textTheme.titleLarge,
@@ -77,7 +91,9 @@ class ProfileScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             TextButton(
                               onPressed: () => context.push('/loginscreen'),
-                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                              ),
                               child: const Text('Sign in'),
                             ),
                           ],
@@ -88,13 +104,17 @@ class ProfileScreen extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            profile.fullName.isNotEmpty ? profile.fullName : 'No name',
+                            profile.fullName.isNotEmpty
+                                ? profile.fullName
+                                : profile.email,
                             style: textTheme.titleLarge,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            profile.email,
+                            profile.fullName.isNotEmpty
+                                ? profile.email
+                                : 'Complete your profile',
                             style: textTheme.bodyMedium,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -107,7 +127,81 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
 
-            // Edit Profile
+            profileAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (error, stackTrace) => TextButton(
+                onPressed: () => ref.invalidate(userProfileProvider),
+                child: const Text('Retry loading profile'),
+              ),
+              data: (profile) {
+                if (profile == null) {
+                  return const SizedBox.shrink();
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      spacing: 10,
+                      children: [
+                        Icon(
+                          Icons.face_outlined,
+                          color: theme.colorScheme.onSurface,
+                          size: 28,
+                        ),
+                        Text(
+                          profile.faceShape?.label ?? 'Face shape not set',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      spacing: 10,
+                      children: [
+                        Icon(
+                          Icons.straighten,
+                          color: theme.colorScheme.onSurface,
+                          size: 28,
+                        ),
+                        Text(
+                          profile.hairTexture?.label ?? 'Hair texture not set',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      spacing: 10,
+                      children: [
+                        Icon(
+                          Icons.content_cut_outlined,
+                          color: theme.colorScheme.onSurface,
+                          size: 28,
+                        ),
+                        Text(
+                          profile.hairLength?.label ?? 'Hair length not set',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+
             SizedBox(
               width: double.infinity,
               child: Material(
@@ -116,14 +210,13 @@ class ProfileScreen extends ConsumerWidget {
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
-                  onTap: () {},
+                  onTap: () {
+                    context.push('/editprofile');
+                  },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     child: Center(
-                      child: Text(
-                        "Edit Profile",
-                        style: textTheme.titleMedium,
-                      ),
+                      child: Text("Edit Profile", style: textTheme.titleMedium),
                     ),
                   ),
                 ),
@@ -140,21 +233,24 @@ class ProfileScreen extends ConsumerWidget {
             ),
             GlassListTile(
               icon: Icons.history,
-              title: "Recent Analyses",
-              onTap: () {},
+              title: "Recent Results",
+              onTap: () => context.push('/history'),
             ),
             GlassListTile(
               icon: Icons.help_outline,
-              title: "Help & Support",
-              onTap: () {},
+              title: "Help",
+              onTap: () => context.push('/help'),
             ),
-            GlassListTile(
-              icon: Icons.logout,
-              title: "Log Out",
-              onTap: () => _logOut(context, ref),
-              trailing: const SizedBox.shrink(),
-              color: Colors.redAccent,
-            ),
+            if (ref.watch(authStateChangesProvider).valueOrNull != null)
+              GlassListTile(
+                icon: Icons.logout,
+                title: "Log Out",
+                onTap: () => _logOut(context, ref),
+                trailing: const SizedBox.shrink(),
+                color: Colors.redAccent,
+              )
+            else
+              const SizedBox(height: 10),
             const SizedBox(height: 90),
           ],
         ),
@@ -176,7 +272,7 @@ class GlassListTile extends StatelessWidget {
     required this.title,
     required this.onTap,
     this.trailing,
-    this.color
+    this.color,
   });
 
   @override
@@ -202,13 +298,23 @@ class GlassListTile extends StatelessWidget {
           borderRadius: radius,
           onTap: onTap,
           child: ListTile(
-            leading: Icon(icon, color: color ?? theme.colorScheme.onSurface, size: 28),
+            leading: Icon(
+              icon,
+              color: color ?? theme.colorScheme.onSurface,
+              size: 28,
+            ),
             title: Text(
               title,
-              style: theme.textTheme.titleMedium?.copyWith(color: color ?? theme.colorScheme.onSurface),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: color ?? theme.colorScheme.onSurface,
+              ),
             ),
-            trailing: trailing ??
-                Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
+            trailing:
+                trailing ??
+                Icon(
+                  Icons.chevron_right,
+                  color: theme.textTheme.bodySmall?.color,
+                ),
           ),
         ),
       ),

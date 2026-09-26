@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hair_app/shared/widgets/fading_app_bar.dart';
 
 import '../../core/theme.dart';
 import 'auth_repository.dart';
+import 'providers/user_profile_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -33,6 +35,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _register() async {
+    if (_isLoading) return;
     final name = _nameController.text.trim();
     final surname = _surnameController.text.trim();
     final email = _emailController.text.trim();
@@ -45,37 +48,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         email.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
-      _showMessage('Пожалуйста, заполните все поля');
+      _showMessage('Please fill in all fields');
       return;
     }
 
     // Проверяем имя
     if (name.length < 2) {
-      _showMessage('Имя должно содержать минимум 2 символа');
+      _showMessage('First name must contain at least 2 characters');
       return;
     }
 
     // Проверяем фамилию
     if (surname.length < 2) {
-      _showMessage('Фамилия должна содержать минимум 2 символа');
+      _showMessage('Last name must contain at least 2 characters');
       return;
     }
 
     // Проверяем email
     if (!email.contains('@') || !email.contains('.')) {
-      _showMessage('Введите корректный email');
+      _showMessage('Enter a valid email address');
       return;
     }
 
     // Проверяем пароль
     if (password.length < 6) {
-      _showMessage('Пароль должен содержать минимум 6 символов');
+      _showMessage('Password must contain at least 6 characters');
       return;
     }
 
     // Проверяем совпадение паролей
     if (password != confirmPassword) {
-      _showMessage('Пароли не совпадают');
+      _showMessage('Passwords do not match');
       return;
     }
 
@@ -84,25 +87,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     try {
-      await ref.read(authRepositoryProvider).signUp(
-        name: name,
-        surname: surname,
-        email: email,
-        password: password,
-      );
+      await ref
+          .read(authRepositoryProvider)
+          .signUp(
+            name: name,
+            surname: surname,
+            email: email,
+            password: password,
+          );
 
       if (!mounted) return;
 
-      _showMessage('Аккаунт успешно создан!');
+      _showMessage('Account created');
 
-      // После регистрации переходим на Home
-      context.go('/');
+      _finish();
+    } on AccountCreatedWithoutProfile catch (error) {
+      if (!mounted) return;
+      _showMessage(error.toString());
+      _finish();
     } catch (e) {
       if (!mounted) return;
 
-      _showMessage(
-        e.toString().replaceFirst('Exception: ', ''),
-      );
+      _showMessage(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) {
         setState(() {
@@ -112,14 +118,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  void _finish() {
+    ref.invalidate(userProfileProvider);
+    if (context.canPop()) {
+      context.pop(true);
+    } else {
+      context.go('/profile');
+    }
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -128,14 +141,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FadingAppBar(
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-          ),
-          onPressed: () => context.pop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: _isLoading
+              ? null
+              : () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/loginscreen');
+                  }
+                },
         ),
-        backgroundColor: Colors.transparent,
       ),
       extendBodyBehindAppBar: true,
       body: SingleChildScrollView(
@@ -143,24 +161,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           constraints: BoxConstraints(
             minHeight: MediaQuery.of(context).size.height,
           ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: isDark
                   ? [
-                AppColors.darkBackground,
-                AppColors.darkBackground.withValues(
-                  alpha: 0.8,
-                ),
-              ]
-                  : [
-                AppColors.lightBackground,
-                Colors.white,
-              ],
+                      AppColors.darkBackground,
+                      AppColors.darkBackground.withValues(alpha: 0.8),
+                    ]
+                  : [AppColors.lightBackground, Colors.white],
             ),
           ),
           child: SafeArea(
@@ -170,7 +181,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 20),
 
                 Text(
-                  'Создать аккаунт',
+                  'Create account',
                   style: theme.textTheme.headlineLarge,
                   textAlign: TextAlign.center,
                 ),
@@ -178,7 +189,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 8),
 
                 Text(
-                  'Начните свой путь к идеальному образу',
+                  'Find a look that suits you',
                   style: theme.textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
@@ -187,14 +198,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 // ИМЯ
                 TextFormField(
+                  enabled: !_isLoading,
                   controller: _nameController,
                   textInputAction: TextInputAction.next,
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(
-                    hintText: 'Имя',
-                    prefixIcon: Icon(
-                      Icons.person_outline,
-                    ),
+                    hintText: 'First name',
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
                 ),
 
@@ -202,14 +212,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 // ФАМИЛИЯ
                 TextFormField(
+                  enabled: !_isLoading,
                   controller: _surnameController,
                   textInputAction: TextInputAction.next,
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(
-                    hintText: 'Фамилия',
-                    prefixIcon: Icon(
-                      Icons.person_outline,
-                    ),
+                    hintText: 'Last name',
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
                 ),
 
@@ -217,14 +226,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 // EMAIL
                 TextFormField(
+                  enabled: !_isLoading,
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     hintText: 'Email',
-                    prefixIcon: Icon(
-                      Icons.email_outlined,
-                    ),
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
                 ),
 
@@ -232,14 +240,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 // ПАРОЛЬ
                 TextFormField(
+                  enabled: !_isLoading,
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
-                    hintText: 'Пароль',
-                    prefixIcon: const Icon(
-                      Icons.lock_outline,
-                    ),
+                    hintText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _isPasswordVisible
@@ -248,8 +255,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       onPressed: () {
                         setState(() {
-                          _isPasswordVisible =
-                          !_isPasswordVisible;
+                          _isPasswordVisible = !_isPasswordVisible;
                         });
                       },
                     ),
@@ -260,15 +266,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 // ПОДТВЕРЖДЕНИЕ ПАРОЛЯ
                 TextFormField(
+                  enabled: !_isLoading,
                   controller: _confirmPasswordController,
                   obscureText: !_isPasswordVisible,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _register(),
                   decoration: const InputDecoration(
-                    hintText: 'Подтвердите пароль',
-                    prefixIcon: Icon(
-                      Icons.lock_reset_outlined,
-                    ),
+                    hintText: 'Confirm password',
+                    prefixIcon: Icon(Icons.lock_reset_outlined),
                   ),
                 ),
 
@@ -279,31 +284,39 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   onPressed: _isLoading ? null : _register,
                   child: _isLoading
                       ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                      : const Text(
-                    'Зарегистрироваться',
-                  ),
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Create account'),
                 ),
 
                 const SizedBox(height: 32),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
                   children: [
                     Text(
-                      'Уже есть аккаунт? ',
+                      'Already have an account? ',
                       style: theme.textTheme.bodyMedium,
                     ),
                     GestureDetector(
-                      onTap: () => context.pop(),
+                      onTap: _isLoading
+                          ? null
+                          : () {
+                              if (context.canPop()) {
+                                context.pop();
+                              } else {
+                                context.go('/loginscreen');
+                              }
+                            },
                       child: const Text(
-                        'Войти',
+                        'Sign in',
                         style: TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.bold,

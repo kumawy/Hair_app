@@ -1,224 +1,193 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:hair_app/shared/widgets/fading_app_bar.dart';
 import '../../auth/providers/user_profile_provider.dart';
 import '../../hairstyles/providers/provider_hairstyle.dart';
+import '../../hairstyles/providers/recommended_hairstyles_provider.dart';
 import '../../../shared/widgets/hairstyle_card.dart';
 
 class Home extends ConsumerWidget {
   const Home({super.key});
-
-  Widget _buildHairstyleRow(WidgetRef ref, Size size) {
-    final hairstylesAsync = ref.watch(hairstylesProvider);
-
-    return SizedBox(
-      height: size.height / 4,
-      child: hairstylesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => const Center(
-          child: Text('Failed to load hairstyles'),
-        ),
-        data: (data) {
-          return ListView.builder(
-            padding: const EdgeInsets.only(left: 20),
-            scrollDirection: Axis.horizontal,
-            itemCount: data.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: SizedBox(
-                  width: size.width / 2.5,
-                  child: HairstyleCard(hairstyle: data[index]),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
-    final colorScheme = theme.colorScheme;
+    final colors = theme.colorScheme;
     final size = MediaQuery.sizeOf(context);
-    final userProfileAsync = ref.watch(userProfileProvider);
-
-    final greeting = userProfileAsync.maybeWhen(
-      data: (profile) => profile != null && profile.name.isNotEmpty
-          ? 'Hello, ${profile.name}'
-          : 'Hello!',
-      orElse: () => 'Hello!',
+    final profile = ref.watch(userProfileProvider);
+    final signedIn = ref.watch(authStateChangesProvider).valueOrNull != null;
+    final personal = profile.valueOrNull?.hasHairProfile == true;
+    final name = profile.valueOrNull?.name ?? '';
+    Widget section(String title, String location) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 12, 10),
+      child: Row(
+        children: [
+          Expanded(child: Text(title, style: theme.textTheme.titleLarge)),
+          TextButton(
+            onPressed: () => context.push(location),
+            style: TextButton.styleFrom(foregroundColor: colors.onSurface),
+            child: Text(
+              'See all',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
-
+    Widget row(bool recommended) => ref
+        .watch(recommended ? recommendedHairstylesProvider : hairstylesProvider)
+        .when(
+          loading: () => const SizedBox(
+            height: 220,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (_, _) => TextButton(
+            onPressed: () => ref.invalidate(hairstylesProvider),
+            child: const Text('Could not load hairstyles. Retry'),
+          ),
+          data: (items) => items.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'No matching hairstyles yet. Explore the catalog for alternatives.',
+                  ),
+                )
+              : SizedBox(
+                  height: (size.height / 4).clamp(210.0, 280.0),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: items.length > 6 ? 6 : items.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
+                    itemBuilder: (_, i) => SizedBox(
+                      width: (size.width / 2.5).clamp(150.0, 240.0),
+                      child: HairstyleCard(hairstyle: items[i]),
+                    ),
+                  ),
+                ),
+        );
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-          flexibleSpace: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.7),
-                      Colors.black.withValues(alpha: 0.3),
-                      Colors.transparent,
-                    ],
-                    stops: const [0, 0.6, 1],),),),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
+      appBar: FadingAppBar(
         actions: [
           IconButton(
-            onPressed: () {
-              context.push('/loginscreen');
-            },
-            splashColor: colorScheme.onSurface.withValues(alpha: 0.1),
-            highlightColor: colorScheme.onSurface.withValues(alpha: 0.05),
+            tooltip: signedIn ? 'Open profile' : 'Sign in',
             icon: const Icon(Icons.account_circle_rounded, size: 40),
+            onPressed: () => signedIn
+                ? context.go('/profile')
+                : context.push('/loginscreen'),
           ),
           const SizedBox(width: 10),
         ],
       ),
-      body:
-       ListView(
-          padding: const EdgeInsets.only(top: 100, bottom: 120),
-          children: [
+      body: ListView(
+        padding: FadingAppBar.contentPadding(
+          context,
+          const EdgeInsets.only(top: 4, bottom: 120),
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.isEmpty ? 'Hello!' : 'Hello, $name',
+                  style: theme.textTheme.headlineLarge,
+                ),
+                Text(
+                  'Ready for a new look?',
+                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 20),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [colors.primary, colors.secondary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.primary.withValues(alpha: .35),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => context.go('/FaceScanner'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Analyze My Face',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  color: colors.onPrimary,
+                                ),
+                              ),
+                              Text(
+                                'Get personalized hairstyle recommendations',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colors.onPrimary.withValues(alpha: .8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(
+                          Icons.arrow_circle_right_outlined,
+                          color: colors.onPrimary,
+                          size: 50,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (personal) ...[
+            section('Recommended for you', '/recommendations'),
+            row(true),
+          ] else
             Padding(
-              padding: const EdgeInsets.only(left: 20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    greeting,
-                    style: textTheme.headlineLarge,
+                  const Text(
+                    'Complete your face shape, texture and length for personal recommendations.',
                   ),
-                  Text(
-                    "Ready for a new look?",
-                    style: textTheme.bodyMedium?.copyWith(fontSize: 20),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            Center(
-              child: Container(
-                height: size.height / 7,
-                width: size.width / 1.1,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [colorScheme.primary, colorScheme.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.35),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 20),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Analyze My Hair",
-                              style: textTheme.titleLarge?.copyWith(
-                                color: colorScheme.onPrimary,
-                              ),
-                            ),
-                            Text(
-                              "Get personalized hairstyle recommendations",
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onPrimary.withValues(alpha: 0.6),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 20),
-                      child: IconButton(
-                        onPressed: () {
-                          context.go('/FaceScanner');
-                        },
-                        splashColor: colorScheme.onPrimary.withValues(alpha: 0.1),
-                        highlightColor: colorScheme.onPrimary.withValues(alpha: 0.05),
-                        icon: Icon(
-                          Icons.arrow_circle_right_outlined,
-                          color: colorScheme.onPrimary,
-                          size: 50,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Recommended for you",
-                    style: textTheme.titleLarge,
-                  ),
-                  Text(
-                    "See all",
-                    style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                  TextButton(
+                    onPressed: () => context.go('/FaceScanner'),
+                    child: const Text('Build my hair profile'),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            _buildHairstyleRow(ref, size),
-
-            const SizedBox(height: 20),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Popular hairstyles",
-                    style: textTheme.titleLarge,
-                  ),
-                  Text(
-                    "See all",
-                    style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            _buildHairstyleRow(ref, size),
-          ],
-        ),
-
+          section('Explore hairstyles', '/search'),
+          row(false),
+        ],
+      ),
     );
   }
 }

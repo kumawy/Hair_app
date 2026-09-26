@@ -1,103 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hair_app/shared/widgets/fading_app_bar.dart';
 import '../../../core/theme.dart';
-import 'dart:ui';
+
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
-
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  // Изначально выбран KZ (индекс 0)
-  final List<bool> _isSelected = [true, false, false];
-
+  bool _saving = false;
   @override
-  Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeProvider);
-    final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Размытие заднего плана
-            child: Container(
-              color: Colors.transparent,
-            ),
-          ),
-        ),
-
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          onPressed: () {
-            context.pop();
-          },
-          icon: const Icon(Icons.arrow_back_ios_new),
-        ),
-        title: Text(
-          "Settings",
-          style: textTheme.headlineLarge,
-        ),
+  Widget build(BuildContext context) => Scaffold(
+    extendBodyBehindAppBar: true,
+    appBar: FadingAppBar(
+      leading: IconButton(
+        tooltip: 'Back',
+        onPressed: () =>
+            context.canPop() ? context.pop() : context.go('/profile'),
+        icon: const Icon(Icons.arrow_back_ios_new),
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        children: [
-          ListTile(
-            leading: const Icon(Icons.dark_mode_outlined, size: 28),
-            title: Text(
-              "Dark/Light theme",
-              style: textTheme.titleMedium,
-            ),
-            trailing: Switch(
-              value: themeMode == ThemeMode.dark,
-              onChanged: (isDark) {
-                ref.read(themeProvider.notifier).state =
-                    isDark ? ThemeMode.dark : ThemeMode.light;
-              },
-            ),
+      title: Text('Settings', style: Theme.of(context).textTheme.headlineLarge),
+    ),
+    body: ListView(
+      padding: FadingAppBar.contentPadding(
+        context,
+        const EdgeInsets.symmetric(horizontal: 20),
+      ),
+      children: [
+        SwitchListTile(
+          secondary: const Icon(Icons.dark_mode_outlined, size: 28),
+          title: Text(
+            'Dark/Light theme',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          ListTile(
-            leading: const Icon(Icons.language, size: 28),
-            title: Text(
-              "Language",
-              style: textTheme.titleMedium,
-            ),
-            trailing: ToggleButtons(
-              isSelected: _isSelected,
-              onPressed: (int index) {
-                setState(() {
-                  for (int i = 0; i < _isSelected.length; i++) {
-                    _isSelected[i] = i == index;
+          value: ref.watch(themeProvider) == ThemeMode.dark,
+          onChanged: _saving
+              ? null
+              : (value) async {
+                  setState(() => _saving = true);
+                  try {
+                    await ref
+                        .read(themeProvider.notifier)
+                        .setMode(value ? ThemeMode.dark : ThemeMode.light);
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Could not save theme. Please try again.',
+                          ),
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) setState(() => _saving = false);
                   }
-                });
-              },
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              renderBorder: false,
-              fillColor: Colors.transparent,
-              selectedColor: theme.colorScheme.tertiary,
-              color: textTheme.bodySmall?.color,
-              children: const [
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text('KZ', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text('RU', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text('ENG', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
+                },
+        ),
+        ListTile(
+          leading: const Icon(Icons.language, size: 28),
+          title: Text(
+            'Language',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        ],
-      ),
-    );
-  }
+          trailing: const Text('English'),
+        ),
+      ],
+    ),
+  );
 }

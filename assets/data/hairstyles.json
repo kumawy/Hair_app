@@ -52,7 +52,7 @@
       "id": "5",
       "name": "Curtains",
       "description": "Center-parted, longer strands framing the face on both sides, reminiscent of late-90s styling.",
-      "imageAsset": "assets/hairstyles/Image.png",
+      "imageAsset": "assets/hairstyles/middle_part.jpeg",
       "suitableFaceShapes": ["oval", "diamond", "long"],
       "suitableTextures": ["straight", "wavy"],
       "suitableDensities": ["medium", "thick"],

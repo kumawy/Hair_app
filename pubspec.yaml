@@ -17,7 +17,12 @@ dependencies:
   firebase_core: 4.14.0
   firebase_auth: ^6.6.1
   cloud_firestore: ^6.9.0
+  camera: ^0.12.1
+  http: ^1.6.0
+  shared_preferences: ^2.5.5
+  google_sign_in: ^7.2.0
 dev_dependencies:
+  camera_platform_interface: ^2.14.0
   flutter_test:
     sdk: flutter
 
@@ -25,6 +30,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  shaders:
+      - shaders/fading_backdrop.frag
   assets:
       - assets/hairstyles/
       - assets/data/hairstyles.json

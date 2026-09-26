@@ -7,6 +7,7 @@ import '../hairstyles/providers/provider_hairstyle.dart';
 import '../../shared/models/hairstyle.dart';
 import '../../shared/models/hair_attributes.dart';
 import '../../shared/widgets/hairstyle_card.dart';
+import '../../shared/widgets/fading_app_bar_backdrop.dart';
 import 'filter_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -20,15 +21,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  int _selectedCategory = 0;
-  final List<String> _categories = [
-    'All',
-    'Long',
-    'Medium',
-    'Short',
-  ];
+  int get _selectedCategory =>
+      _selectedLength == null ? 0 : _categories.indexOf(_selectedLength!.label);
+  final List<String> _categories = ['All', 'Long', 'Medium', 'Short'];
 
-  FaceShape? _selectedFaceShape;
+  Shape? _selectedFaceShape;
   HairTexture? _selectedTexture;
   HairLength? _selectedLength;
 
@@ -46,7 +43,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final query = _normalize(_searchQuery);
     if (query.isEmpty) return true;
 
-    final queryWords = query.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
+    final queryWords = query
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList();
 
     final searchableText = [
       hairstyle.name,
@@ -56,17 +56,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       ...hairstyle.suitableLengths.map((length) => length.name),
     ].join(' ');
 
-    final words = _normalize(searchableText).split(RegExp(r'[\s,._\-\/]+')).where((word) => word.isNotEmpty).toList();
+    final words = _normalize(
+      searchableText,
+    ).split(RegExp(r'[\s,._\-\/]+')).where((word) => word.isNotEmpty).toList();
 
     return queryWords.every((queryWord) {
       return words.any((word) => word.startsWith(queryWord));
     });
-  }
-
-  bool _matchesCategory(Hairstyle hairstyle) {
-    if (_selectedCategory == 0) return true;
-    final selectedLength = _categories[_selectedCategory].toLowerCase();
-    return hairstyle.suitableLengths.any((length) => length.name == selectedLength);
   }
 
   bool _matchesLength(Hairstyle hairstyle) {
@@ -87,7 +83,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   List<Hairstyle> _filterHairstyles(List<Hairstyle> hairstyles) {
     return hairstyles.where((hairstyle) {
       return _matchesSearch(hairstyle) &&
-          _matchesCategory(hairstyle) &&
           _matchesFaceShape(hairstyle) &&
           _matchesTexture(hairstyle) &&
           _matchesLength(hairstyle);
@@ -101,7 +96,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final suggestions = <String>{};
     for (final hairstyle in hairstyles) {
       final nameWords = hairstyle.name.split(RegExp(r'\s+'));
-      final matches = nameWords.any((word) => _normalize(word).startsWith(query));
+      final matches = nameWords.any(
+        (word) => _normalize(word).startsWith(query),
+      );
       if (matches) suggestions.add(hairstyle.name);
     }
     return suggestions.take(5).toList();
@@ -109,7 +106,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   int _activeFilterCount() {
     int count = 0;
-    if (_selectedCategory != 0) count++;
     if (_selectedFaceShape != null) count++;
     if (_selectedTexture != null) count++;
     if (_selectedLength != null) count++;
@@ -118,7 +114,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _clearFilters() {
     setState(() {
-      _selectedCategory = 0;
       _selectedFaceShape = null;
       _selectedTexture = null;
       _selectedLength = null;
@@ -140,7 +135,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+                    border: Border.all(
+                      color: theme.dividerColor.withValues(alpha: 0.1),
+                    ),
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -176,7 +173,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: theme.dividerColor.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: IconButton(
                   onPressed: () async {
@@ -186,9 +185,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       texture: _selectedTexture,
                       length: _selectedLength,
                     );
-                    if (result != null) {
+                    if (mounted && result != null) {
                       setState(() {
-                        _selectedFaceShape = result['faceShape'] as FaceShape?;
+                        _selectedFaceShape = result['faceShape'] as Shape?;
                         _selectedTexture = result['texture'] as HairTexture?;
                         _selectedLength = result['length'] as HairLength?;
                       });
@@ -211,7 +210,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     child: Center(
                       child: Text(
                         '${_activeFilterCount()}',
-                        style: TextStyle(color: theme.colorScheme.onPrimary, fontSize: 11, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: theme.colorScheme.onPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -233,22 +236,32 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         itemBuilder: (context, index) {
           final isSelected = _selectedCategory == index;
           return GestureDetector(
-            onTap: () => setState(() => _selectedCategory = index),
+            onTap: () => setState(
+              () => _selectedLength = index == 0
+                  ? null
+                  : HairLength.values.byName(_categories[index].toLowerCase()),
+            ),
             child: Container(
               width: 80,
               margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
-                color: isSelected ? theme.colorScheme.primary : theme.colorScheme.surface.withValues(alpha: 0.4),
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.surface.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isSelected ? theme.colorScheme.primary : theme.dividerColor.withValues(alpha: 0.1),
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.dividerColor.withValues(alpha: 0.1),
                 ),
               ),
               child: Center(
                 child: Text(
                   _categories[index],
                   style: theme.textTheme.labelLarge?.copyWith(
-                    color: isSelected ? theme.colorScheme.onPrimary : theme.textTheme.bodyMedium?.color,
+                    color: isSelected
+                        ? theme.colorScheme.onPrimary
+                        : theme.textTheme.bodyMedium?.color,
                   ),
                 ),
               ),
@@ -293,7 +306,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.search_off_rounded, color: theme.textTheme.bodySmall?.color, size: 60),
+              Icon(
+                Icons.search_off_rounded,
+                color: theme.textTheme.bodySmall?.color,
+                size: 60,
+              ),
               const SizedBox(height: 15),
               Text('No hairstyles found', style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
@@ -306,7 +323,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               if (_activeFilterCount() > 0)
                 TextButton(
                   onPressed: _clearFilters,
-                  child: Text('Clear filters', style: TextStyle(color: theme.colorScheme.secondary)),
+                  child: Text(
+                    'Clear filters',
+                    style: TextStyle(color: theme.colorScheme.secondary),
+                  ),
                 ),
             ],
           ),
@@ -325,13 +345,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           mainAxisSpacing: 10,
           childAspectRatio: 0.8,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final hairstyle = hairstyles[index];
-            return HairstyleCard(hairstyle: hairstyle);
-          },
-          childCount: hairstyles.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final hairstyle = hairstyles[index];
+          return HairstyleCard(hairstyle: hairstyle);
+        }, childCount: hairstyles.length),
       ),
     );
   }
@@ -342,18 +359,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final hairstylesAsync = ref.watch(hairstylesProvider);
 
     return Scaffold(
-      body: CustomScrollView(
+      body: SafeArea(
+        child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.only(left: 20, top: 10, bottom: 15),
-                child: Text('Explore Hairstyles', style: theme.textTheme.headlineLarge),
+                child: Text(
+                  'Explore Hairstyles',
+                  style: theme.textTheme.headlineLarge,
+                ),
               ),
             ),
             SliverAppBar(
               primary: false,
-              backgroundColor: theme.scaffoldBackgroundColor,
+              backgroundColor: Colors.transparent,
               elevation: 0,
+              scrolledUnderElevation: 0,
+              surfaceTintColor: Colors.transparent,
+              flexibleSpace: const FadingAppBarBackdrop(),
               floating: true,
               snap: true,
               pinned: false,
@@ -364,14 +388,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
             if (_searchQuery.isNotEmpty)
               hairstylesAsync.when(
-                loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
-                error: (_, _) => const SliverToBoxAdapter(child: SizedBox.shrink()),
-                data: (data) => SliverToBoxAdapter(child: _buildSuggestions(data, theme)),
+                loading: () =>
+                    const SliverToBoxAdapter(child: SizedBox.shrink()),
+                error: (_, _) =>
+                    const SliverToBoxAdapter(child: SizedBox.shrink()),
+                data: (data) =>
+                    SliverToBoxAdapter(child: _buildSuggestions(data, theme)),
               ),
             SliverAppBar(
               primary: false,
-              backgroundColor: theme.scaffoldBackgroundColor,
+              backgroundColor: Colors.transparent,
               elevation: 0,
+              scrolledUnderElevation: 0,
+              surfaceTintColor: Colors.transparent,
+              flexibleSpace: const FadingAppBarBackdrop(),
               floating: true,
               snap: true,
               pinned: false,
@@ -381,9 +411,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               title: _buildCategories(theme),
             ),
             hairstylesAsync.when(
-              loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
+              loading: () => const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              ),
               error: (error, stackTrace) => SliverFillRemaining(
-                child: Center(child: Text('Error: $error')),
+                child: Center(
+                  child: TextButton(
+                    onPressed: () => ref.invalidate(hairstylesProvider),
+                    child: const Text('Could not load hairstyles. Retry'),
+                  ),
+                ),
               ),
               data: (data) {
                 final filteredData = _filterHairstyles(data);
@@ -394,6 +431,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             const SliverToBoxAdapter(child: SizedBox(height: 90)),
           ],
         ),
+      ),
     );
   }
 }

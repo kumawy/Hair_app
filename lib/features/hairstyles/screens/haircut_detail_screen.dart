@@ -1,140 +1,304 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:hair_app/shared/models/hairstyle.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hair_app/shared/widgets/fading_app_bar.dart';
+import '../../../shared/models/hairstyle.dart';
+import '../../../shared/models/hair_attributes.dart';
+import '../../../shared/widgets/favorite_button.dart';
+import '../providers/provider_hairstyle.dart';
+import 'hairstyle_generation_screen.dart';
+
+class HairstyleDetailsRoute extends ConsumerWidget {
+  const HairstyleDetailsRoute({super.key, required this.id});
+  final String id;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => ref
+      .watch(hairstylesProvider)
+      .when(
+        loading: () => const Scaffold(
+          extendBodyBehindAppBar: true,
+          appBar: FadingAppBar(title: Text('Hairstyle')),
+          body: Center(child: CircularProgressIndicator()),
+        ),
+        error: (_, _) => Scaffold(
+          extendBodyBehindAppBar: true,
+          appBar: FadingAppBar(title: const Text('Hairstyle')),
+          body: Center(
+            child: TextButton(
+              onPressed: () => ref.invalidate(hairstylesProvider),
+              child: const Text('Could not load hairstyle. Retry'),
+            ),
+          ),
+        ),
+        data: (styles) {
+          final matches = styles.where((style) => style.id == id);
+          if (matches.isEmpty) {
+            return Scaffold(
+              extendBodyBehindAppBar: true,
+              appBar: FadingAppBar(title: const Text('Hairstyle not found')),
+              body: Center(
+                child: TextButton(
+                  onPressed: () => context.go('/search'),
+                  child: const Text('Explore hairstyles'),
+                ),
+              ),
+            );
+          }
+          return HaircutDetailsScreen(hairstyle: matches.first);
+        },
+      );
+}
 
 class HaircutDetailsScreen extends StatelessWidget {
+  const HaircutDetailsScreen({super.key, required this.hairstyle});
   final Hairstyle hairstyle;
-
-  const HaircutDetailsScreen({
-    super.key,
-    required this.hairstyle,
-  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colors = theme.colorScheme;
+    final viewport = MediaQuery.sizeOf(context);
+    final contentWidth = math.min(viewport.width, 720.0);
+    final photoHeight = math
+        .min(contentWidth * 1.12, viewport.height * .55)
+        .clamp(280.0, 560.0);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: FadingAppBar(
+        leadingWidth: 72,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 20),
+          child: Center(
+            child: _HeaderAction(
+              child: IconButton(
+                tooltip: 'Back',
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/search'),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: _HeaderAction(
+              child: FavoriteButton(hairstyleId: hairstyle.id),
+            ),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
-          CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(
-                    bottom: Radius.circular(30),
-                  ),
-                ),
-                flexibleSpace: FlexibleSpaceBar(
-                  background: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(30),
-                    ),
-                    child: Image.asset(
-                      hairstyle.imageAsset,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                pinned: true,
-                expandedHeight: 400,
-                // РЕШЕНИЕ: Обернули в UnconstrainedBox и добавили отступ слева
-                leading: UnconstrainedBox(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 16),
-                    child: _CircleArroundButton(
-                      child: IconButton(
-                        padding: EdgeInsets.zero, // Сбрасываем внутренний отступ
-                        constraints: const BoxConstraints(), // Убираем дефолтный размер кнопки
-                        onPressed: () => context.pop(),
-                        icon: Icon(
-                          Icons.arrow_back_ios_new,
-                          color: colorScheme.onSurface,
-                          size: 18, // 18-19 компенсирует визуальную массу по сравнению с сердцем
-                        ),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: photoHeight,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.asset(
+                            hairstyle.imageAsset,
+                            fit: BoxFit.cover,
+                            alignment: const Alignment(0, -.8),
+                            semanticLabel: hairstyle.name,
+                            errorBuilder: (_, _, _) => ColoredBox(
+                              color: colors.surface,
+                              child: Icon(
+                                Icons.image_not_supported_outlined,
+                                color: colors.onSurface.withValues(alpha: .4),
+                                size: 40,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            height: 128,
+                            child: IgnorePointer(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      theme.scaffoldBackgroundColor.withValues(
+                                        alpha: 0,
+                                      ),
+                                      theme.scaffoldBackgroundColor.withValues(
+                                        alpha: .4,
+                                      ),
+                                      theme.scaffoldBackgroundColor,
+                                    ],
+                                    stops: const [0, .55, 1],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-                actions: [
-                  // Добавили отступ справа для симметрии
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: _CircleArroundButton(
-                      child: IconButton(
-                        padding: EdgeInsets.zero, // Сбрасываем внутренний отступ
-                        constraints: const BoxConstraints(), // Убираем дефолтный размер кнопки
-                        onPressed: () {
-                          // TODO: favorite
-                        },
-                        icon: Icon(
-                          Icons.favorite_border,
-                          color: colorScheme.onSurface,
-                          size: 20,
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(24, 0, 24, 152 + bottomInset),
+                    sliver: SliverList.list(
+                      children: [
+                        Text(
+                          hairstyle.name,
+                          style: theme.textTheme.headlineLarge?.copyWith(
+                            fontSize: 34,
+                            height: 1.12,
+                            letterSpacing: -.9,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        Text(
+                          hairstyle.description,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontSize: 15,
+                            height: 1.55,
+                            color: colors.onSurface.withValues(alpha: .68),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _StyleStat(
+                                icon: Icons.content_cut_rounded,
+                                label: 'Maintenance',
+                                value: hairstyle.maintenanceLevel,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _StyleStat(
+                                icon: Icons.tune_rounded,
+                                label: 'Styling',
+                                value: hairstyle.stylingDifficulty,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 28),
+                        Text(
+                          'Style details',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -.3,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.surface.withValues(
+                              alpha: theme.brightness == Brightness.dark
+                                  ? .65
+                                  : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: colors.onSurface.withValues(alpha: .06),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              _Attributes(
+                                title: 'Face shape',
+                                items: hairstyle.suitableFaceShapes
+                                    .map((v) => v.label)
+                                    .toList(),
+                              ),
+                              const _AttributeDivider(),
+                              _Attributes(
+                                title: 'Hair texture',
+                                items: hairstyle.suitableTextures
+                                    .map((v) => v.label)
+                                    .toList(),
+                              ),
+                              const _AttributeDivider(),
+                              _Attributes(
+                                title: 'Hair length',
+                                items: hairstyle.suitableLengths
+                                    .map((v) => v.label)
+                                    .toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              SliverToBoxAdapter(
-                  child:Padding(
-                    padding: EdgeInsetsGeometry.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Listcontainer(title: "Face Shape", items: hairstyle.suitableFaceShapes.map((texture) => texture.name).toList()),
-                        SizedBox(height: 20),
-                        _Listcontainer(title: "Texture", items: hairstyle.suitableTextures.map((texture) => texture.name).toList())
-                      ],
-                    )
-                  )
-              ),
-            ],
+            ),
           ),
-
           Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
-            child: SafeArea(
-              top: false,
-              child: Container(
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [colorScheme.primary, colorScheme.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    theme.scaffoldBackgroundColor.withValues(alpha: 0),
+                    theme.scaffoldBackgroundColor,
+                    theme.scaffoldBackgroundColor,
+                  ],
+                  stops: const [0, .35, 1],
                 ),
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    minimumSize: const Size.fromHeight(56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: () {
-                    // TODO: book / select
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.auto_awesome, color: colorScheme.onPrimary, size: 20),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Generate',
-                        style: TextStyle(color: Colors.white),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colors.primary,
+                          foregroundColor: colors.onPrimary,
+                          minimumSize: const Size.fromHeight(56),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          textStyle: theme.textTheme.labelLarge?.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onPressed: () =>
+                            Navigator.of(context, rootNavigator: true).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => HairstyleGenerationScreen(
+                                  hairstyle: hairstyle,
+                                ),
+                              ),
+                            ),
+                        icon: const Icon(Icons.visibility_outlined, size: 21),
+                        label: const Text('Preview hairstyle'),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -146,78 +310,160 @@ class HaircutDetailsScreen extends StatelessWidget {
   }
 }
 
-// Виджет круга сделан StatelessWidget, так как в нем нет динамического состояния (State)
-class _CircleArroundButton extends StatelessWidget {
-  const _CircleArroundButton({required this.child});
-
+class _HeaderAction extends StatelessWidget {
+  const _HeaderAction({required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      width: 40,
-      height: 40,
+      width: 48,
+      height: 48,
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.3),
+        color: theme.scaffoldBackgroundColor.withValues(alpha: .6),
         shape: BoxShape.circle,
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: .1),
+        ),
       ),
-      child: Center(child: child),
+      child: child,
     );
   }
 }
 
-class _Listcontainer extends StatelessWidget {
-  final String title;
-  final List<String> items; // Принимаем просто список строк
-
-  const _Listcontainer({
-    required this.title,
-    required this.items,
+class _StyleStat extends StatelessWidget {
+  const _StyleStat({
+    required this.icon,
+    required this.label,
+    required this.value,
   });
+  final IconData icon;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: theme.textTheme.titleLarge),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 50,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final itemName = items[index];
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    borderRadius: BorderRadius.circular(20),
+    final colors = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(
+          alpha: theme.brightness == Brightness.dark ? .65 : 1,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.onSurface.withValues(alpha: .06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 17,
+                color: theme.brightness == Brightness.dark
+                    ? colors.secondary
+                    : colors.primary,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 12,
+                    height: 1.3,
                   ),
-                  child: Center(
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              height: 1.15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Attributes extends StatelessWidget {
+  const _Attributes({required this.title, required this.items});
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(
+              title,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 7,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final item in items)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: .055,
+                      ),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
                     child: Text(
-                      itemName,
-                      style: TextStyle(
-                        color: colorScheme.onSurface,
-                        fontSize: 16,
+                      item,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 12,
+                        height: 1.2,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
+}
+
+class _AttributeDivider extends StatelessWidget {
+  const _AttributeDivider();
+  @override
+  Widget build(BuildContext context) => Divider(
+    height: 1,
+    thickness: 1,
+    indent: 16,
+    endIndent: 16,
+    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .055),
+  );
 }

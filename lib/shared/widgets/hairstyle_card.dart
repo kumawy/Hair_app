@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/hairstyle.dart';
+import 'favorite_button.dart';
 
 /// Карточка причёски (картинка + название).
 ///
@@ -18,11 +19,7 @@ class HairstyleCard extends StatelessWidget {
   /// Можно переопределить своим поведением при необходимости.
   final VoidCallback? onTap;
 
-  const HairstyleCard({
-    super.key,
-    required this.hairstyle,
-    this.onTap,
-  });
+  const HairstyleCard({super.key, required this.hairstyle, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +33,9 @@ class HairstyleCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
-        border: Border.all(color: colorScheme.onSurface.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: colorScheme.onSurface.withValues(alpha: 0.08),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -50,22 +49,40 @@ class HairstyleCard extends StatelessWidget {
         borderRadius: borderRadius,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onTap ??
-              () => context.push('/hairstyle/${hairstyle.id}', extra: hairstyle),
+          onTap:
+              onTap ??
+              () =>
+                  context.push('/hairstyle/${hairstyle.id}', extra: hairstyle),
           child: Column(
             children: [
               Expanded(
-                child: Image.asset(
-                  hairstyle.imageAsset,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Center(
-                    child: Icon(
-                      Icons.image_not_supported_outlined,
-                      color: colorScheme.onSurface.withValues(alpha: 0.38),
-                      size: 40,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(
+                      hairstyle.imageAsset,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: colorScheme.onSurface.withValues(alpha: 0.38),
+                          size: 40,
+                        ),
+                      ),
                     ),
-                  ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colorScheme.surface.withValues(alpha: .85),
+                          shape: BoxShape.circle,
+                        ),
+                        child: FavoriteButton(hairstyleId: hairstyle.id),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Padding(
